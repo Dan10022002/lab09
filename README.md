@@ -82,9 +82,9 @@ git push origin master --tags_
 10. Сoздаём релиз нашего пректа на GITHUB
 
 ```sh
-github-release --version
-github-release info -u ${GITHUB_USERNAME} -r lab09
-github-release release \
+git-release --version
+git-release info -u ${GITHUB_USERNAME} -r lab09
+git-release release \
     --user ${GITHUB_USERNAME} \
     --repo lab09 \
     --tag v0.1.0.0 \
@@ -92,3 +92,23 @@ github-release release \
     --description "my first release"
 ```
 
+![release](https://github.com/Dan10022002/lab09/blob/master/release.png)
+
+11. Загружаем пакет в релиз на GITHUB
+
+```sh
+export PACKAGE_OS=`uname -s` PACKAGE_ARCH=`uname -m` 
+export PACKAGE_FILENAME=print-${PACKAGE_OS}-${PACKAGE_ARCH}.tar.gz
+git-release upload \
+    --user ${GITHUB_USERNAME} \
+    --repo lab09 \
+    --tag v0.1.0.0 \
+    --name "${PACKAGE_FILENAME}" \
+    --file _build/*.tar.gz
+```
+
+_github-release info -u ${GITHUB_USERNAME} -r lab09<br/>
+wget https://github.com/${GITHUB_USERNAME}/lab09/releases/download/v0.1.0.0/${PACKAGE_FILENAME}<br/>
+tar -ztf ${PACKAGE_FILENAME}_
+
+![wget](https://github.com/Dan10022002/lab09/blob/master/wget.png)
