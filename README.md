@@ -1,128 +1,94 @@
-# Отчёт по lab08
+# Отчёт по lab09
 
 ## Tutorial
 
-1. Создаём переменные, переходим в необходимые директории и активируем скрипты
+1. Создаём переменные
 
-_export GITHUB_USERNAME=<имя_пользователя><br/>
-cd ${GITHUB_USERNAME}/workspace<br/>
+_export GITHUB_USERNAME=Dan10022002<br/>
+export PACKAGE_MANAGER='sudo apt'<br/>
+export GPG_PACKAGE_NAME=gpg_
+
+2. Устанавливаем xclip и необходимые алисы
+
+_$PACKAGE_MANAGER install xclip<br/>
+alias gsed=sed<br/>
+alias pbcopy='xclip -selection clipboard'<br/>
+alias pbpaste='xclip -selection clipboard -o'_
+
+![xclip](https://github.com/Dan10022002/lab09/blob/master/xclip.png)
+
+3. Переходим в рабочую директорию и активируем скрипт
+
+_cd ${GITHUB_USERNAME}/workspace<br/>
 pushd .<br/>
-source scripts/activate_
+source scripts/activate<br/>
+go get github.com/aktau/github-release_
 
-2. Клонируем репозиторий и изменияем URL
+![go](https://github.com/Dan10022002/lab09/blob/master/go.png)
 
-_git clone https://github.com/${GITHUB_USERNAME}/lab07 projects/lab08<br/>
-cd projects/lab08<br/>
-git submodule update --init<br/>
+4. Клонируем репозиторий и изменияем URL
+
+_git clone https://github.com/${GITHUB_USERNAME}/lab08 projects/lab09<br/>
+cd projects/lab09<br/>
 git remote remove origin<br/>
-git remote add origin https://github.com/${GITHUB_USERNAME}/lab08_
+git remote add origin https://github.com/${GITHUB_USERNAME}/lab09_
 
-3. Создаём файл Dockerfile и записываем в него информацию об образе, который будет использоваться, и командах, которые будут выполнены:
+5. Заменяем lab08 на lab09
 
-```sh
-$ cat > Dockerfile <<EOF
-FROM ubuntu:18.04
-EOF
-```
+_gsed -i 's/lab08/lab09/g' README.md_
 
-```sh
-cat >> Dockerfile <<EOF
+6. Устанавливаем gpg, выводим уже существующие ключи и задаём формат отображения идентификаторов ключей, генерируем ключ и снова выводим, задаём новые переменные GPG_KEY_ID и GPG_SEC_KEY_ID, переводим GPG_KEY_ID в ASKII, копируем в буфер обмена и выводим его содержимое, обновляем в конфигурацию git информацию о ключе gpg.
 
-RUN apt update -y
-RUN apt install -yy gcc g++ cmake
-EOF
-```
+_$PACKAGE_MANAGER install ${GPG_PACKAGE_NAME}<br/>
+gpg --list-secret-keys --keyid-format LONG<br/>
+gpg --full-generate-key<br/>
+gpg --list-secret-keys --keyid-format LONG<br/>
+gpg -K ${GITHUB_USERNAME}<br/>
+GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep ssb | tail -1 | awk '{print $2}' | awk -F'/' '{print $2}')<br/>
+GPG_SEC_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep sec | tail -1 | awk '{print $2}' | awk -F'/' '{print $2}')<br/>
+gpg --armor --export ${GPG_KEY_ID} | pbcopy<br/>
+pbpaste<br/>
+open https://github.com/settings/keys<br/>
+git config user.signingkey ${GPG_SEC_KEY_ID}<br/>
+git config gpg.program gpg_
 
-```sh
-cat >> Dockerfile <<EOF
+![gpg](https://github.com/Dan10022002/lab09/blob/master/gpg.png)
 
-COPY . print/
-WORKDIR print
-EOF
-```
+![key](https://github.com/Dan10022002/lab09/blob/master/key1.png)
 
-```sh
-cat >> Dockerfile <<EOF
+7. Проверяем, есть ли доступ к .bash_profile и записываем переменную GPG_TTY со значением $(tty), такую же переменную записываем в файл .profile
 
-RUN cmake -H. -B_build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=_install
-RUN cmake --build _build
-RUN cmake --build _build --target install
-EOF
-```
+_test -r ~/.bash_profile && echo 'export GPG_TTY=$(tty)' >> ~/.bash_profile<br/>
+echo 'export GPG_TTY=$(tty)' >> ~/.profile_
 
-```sh
-cat >> Dockerfile <<EOF
+8. Запускаем комапилицию проекту и выполняем сборку с созданием пакета
 
-ENV LOG_PATH /home/logs/log.txt
-EOF
-```
+_cmake -H. -B_build -DCPACK_GENERATOR="TGZ"<br/>
+cmake --build _build --target package_
 
-```sh
-cat >> Dockerfile <<EOF
+![build1](https://github.com/Dan10022002/lab09/blob/master/build1.png)
 
-VOLUME /home/logs
-EOF
-```
+![build2](https://github.com/Dan10022002/lab09/blob/master/build2.png)
 
-```sh
-cat >> Dockerfile <<EOF
+9. Создаём метку и "подписываем" её ключом gpg
 
-WORKDIR _install/bin
-EOF
-```
-
-```sh
-cat >> Dockerfile <<EOF
-
-CMD ./demo
-EOF
-```
-
-4. Собираем опраз
-
-_docker build -t logger ._
-
-5. Выводим информацию об образах
-
-_docker images_
-
-6. Создаём директорию, куда будут записываться логи, и запускаем докер в интерактивном режиме
-
-_mkdir logs_
-```sh
-docker run -it -v "$(pwd)/logs/:/home/logs/" logger
-text1
-text2
-text3
-<C-D>
-```
-
-7. Смотрим внутреннее состояние контейнера
-
-_docker inspect logger_
-
-8. Смотрим логи
-
-_cat logs/log.txt_
-
-9. Редактируем .travis.yml, чтобы мы могли создавать на тревисе контейнер
-
-_vim .travis.yml_
-
-```sh
-language: generic
-services:
-- docker
-
-script:
-- docker build -t logger .
-```
-10. Заливаем на гитхаб
-
-_git add .<br/>
-git commit -m"added cpack config"<br/>
+_git tag -s v0.1.0.0<br/>
+git tag -v v0.1.0.0<br/>
+git show v0.1.0.0<br/>
 git push origin master --tags_
 
-11. Авторизируемся на  https://travis-ci.org и запускаем тест сборки
+![tag](https://github.com/Dan10022002/lab09/blob/master/tag.png)
 
-![travis](https://api.travis-ci.org/Dan10022002/lab08.svg?branch=master&status=passed)
+10. Сoздаём релиз нашего пректа на GITHUB
+
+```sh
+github-release --version
+github-release info -u ${GITHUB_USERNAME} -r lab09
+github-release release \
+    --user ${GITHUB_USERNAME} \
+    --repo lab09 \
+    --tag v0.1.0.0 \
+    --name "libprint" \
+    --description "my first release"
+```
+
